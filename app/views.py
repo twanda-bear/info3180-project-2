@@ -8,7 +8,11 @@ This file creates your application.
 from app import app
 from flask import render_template, request, jsonify, send_file
 import os
-
+from . import db
+from app.forms import MovieForm
+from app.models import Movie
+from werkzeug.utils import secure_filename
+from flask_wtf.csrf import generate_csrf
 
 ###
 # Routing for your application.
@@ -17,6 +21,54 @@ import os
 @app.route('/')
 def index():
     return jsonify(message="This is the beginning of our API")
+
+@app.route("/api/v1/csrf-token", methods=["GET"])
+def get_csrf():
+    return jsonify({"csrf_token": generate_csrf()})
+
+
+@app.route('/api/v1/movies', methods=['POST', 'GET'])
+def movies():
+    form = MovieForm(request.form, meta = {'csrf': False})
+    if request.method == 'GET':
+        movies = Movie.query.all()
+        movie_list = []
+        for movie in movies:
+            movie_list.append({
+                "id": movie.id,
+                "title": movie.title,
+                "poster": movie.poster,
+                "description": movie.description
+            })
+        return jsonify(movies=movie_list), 200
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            get_csrf()
+            f = form.poster.data
+            filename = secure_filename(f.filename)
+            f.save(os.path.join(
+                app.instance_path, '../uploads', filename
+            ))
+
+            new_movie = Movie(
+                title=form.title.data,
+                description=form.description.data,
+                poster=filename,
+                created_at=db.func.current_timestamp()
+            )
+            db.session.add(new_movie)
+            db.session.commit()
+            return jsonify(
+                message="Movie Successfully added",
+                title=new_movie.title,
+                poster=new_movie.poster,
+                description=new_movie.description
+            ), 201
+        else:
+            return jsonify(errors=form.errors), 400
+
+    
+    
 
 
 ###
