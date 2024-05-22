@@ -39,8 +39,6 @@ class Likes(db.Model):
         self.user_id = user_id
 
 
-
-
 class Follows(db.Model):
     __tablename__ = "follows"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
